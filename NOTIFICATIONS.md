@@ -9,6 +9,17 @@ notification**.
 Only alerts at/above `min_severity` that are **newly fired** notify (dashboard
 still shows everything). Muted rules and quiet hours are respected.
 
+**Picking one:** on your own laptop, the Windows toast needs zero setup.
+For your phone, ntfy is the fastest (~1 min, no account); Telegram and
+WhatsApp take a couple more minutes but you likely already have the app
+installed. You can enable more than one at once — every enabled channel
+fires for every notifying alert.
+
+Every channel below only ever receives a short summary (severity, rule name,
+resource name, count, timestamp) — never the full alert description or KQL
+results. See [SECURITY.md](SECURITY.md#third-party-senders-opt-in) for the
+exact data-flow table.
+
 ---
 
 ## 🖥️ Desktop (Windows toast) — already on
@@ -32,8 +43,9 @@ Nothing to set up. Windows only (silently skipped elsewhere).
        phone: "4479XXXXXXXX"     # your number, country code, NO +
        apikey: "123456"          # from the reply
    ```
-No Meta app, no cost for personal use. (CallMeBot is a third party — only alert
-titles/text are sent to it.)
+No Meta app, no cost for personal use. CallMeBot is a third-party free relay —
+only the short summary line is sent to it (see the privacy note above), but
+it does see your phone number and API key as part of every request.
 
 ## ✈️ Telegram — ~2 minutes
 1. In Telegram, message **@BotFather** → `/newbot` → copy the **bot token**.
