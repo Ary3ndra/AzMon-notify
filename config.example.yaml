@@ -1,0 +1,93 @@
+# ── azmon-notify config ──────────────────────────────────────────────
+# Copy this file to  config.yaml  and edit. config.yaml is git-ignored so your
+# tokens never get committed. Cost-free: auth uses your own `az login` session.
+
+poll_interval_seconds: 30          # how often to hit Azure. 30s = near-real-time
+lookback: "1d"                     # query window each poll AND local retention
+                                   # window: on launch, the last 1d of alerts
+                                   # (fired AND resolved) is scraped straight
+                                   # into the dashboard/Closed section. Anything
+                                   # not seen again for a full window after that
+                                   # is deleted from the db automatically, so it
+                                   # never grows unbounded. Azure's alerts API
+                                   # only offers fixed windows (no exact "12h"),
+                                   # so "1d" is the smallest one that still covers
+                                   # a full 12h+ of history.
+                                   # valid: 1h, 1d, 7d, 30d
+notify_on_first_run: false         # false = on boot, seed silently (dashboard
+                                   #         still shows them; no toast spam)
+
+# Subscriptions to scan. [] = auto-discover everything you can read.
+subscriptions: []
+#  - 00000000-0000-0000-0000-000000000000
+
+monitor_condition: ""              # "" = Fired + Resolved (needed for the Closed
+                                   #   section) | "Fired" | "Resolved"
+alert_state: ""                    # "" = every state (New + Acknowledged + Closed),
+                                   #   so the dashboard mirrors Azure exactly.
+                                   #   New | Acknowledged | Closed to restrict.
+min_severity: 4                    # 0=Critical .. 4=Verbose. 4 = show EVERYTHING
+                                   #   (matches Azure). Raise to 3 to mute Verbose
+                                   #   noise, 2 to also mute Informational, etc.
+group_by: "targetResourceName"     # targetResourceName | targetResourceGroup
+                                   #   | severity | alertRule | signalType
+
+# ── local web console ────────────────────────────────────────────────
+web:
+  host: "127.0.0.1"               # SECURE DEFAULT: this PC only. Set "0.0.0.0"
+                                  #   to reach it from your phone on the LAN —
+                                  #   but ONLY together with auth_token below.
+  port: 8000
+  auth_token: ""                  # "" = no auth (safe on 127.0.0.1). If you set
+                                  #   host 0.0.0.0, set a long random token here;
+                                  #   then open  http://<ip>:8000/?token=YOURTOKEN
+                                  #   once (it drops a cookie). Blocks the LAN
+                                  #   otherwise. Keep this file private.
+
+# ── quiet hours: suppress toasts/push AND the in-page beep in this window ─
+# (alerts still appear on the dashboard — only the noise is muted). 24h HH:MM,
+# may wrap midnight (e.g. 22:00 -> 07:00).
+quiet_hours:
+  enabled: false
+  start: "22:00"
+  end: "07:00"
+
+# ── push channels (the dashboard already notifies in-page) ───────────
+senders:
+  windows_toast:
+    enabled: true                  # native Win11 toast (needs: pip install winotify)
+    app_id: "AzMon"                # shown as the toast source (kept vendor-neutral)
+
+  ntfy:
+    enabled: false                 # phone push anywhere. Install ntfy app, subscribe
+    server: "https://ntfy.sh"      #   to your topic. Self-host later if you want.
+    topic: "azmon-CHANGE-ME-9f2a"  # make it unguessable on public ntfy.sh
+    token: ""
+
+  telegram:
+    enabled: false
+    bot_token: ""                  # from @BotFather
+    chat_id: ""
+
+  whatsapp:
+    enabled: false                 # free personal WhatsApp via CallMeBot.
+    phone: ""                      #   your number w/ country code, no + (e.g. 4479...)
+    apikey: ""                     #   see NOTIFICATIONS.md for the 1-min setup
+
+# ── plugins / extensions ─────────────────────────────────────────────
+# The 'room' for add-ons. Copy azmon_notify/plugins/example.py, subclass
+# Plugin, @register("your_name"), add a block here, flip enabled: true.
+# A plugin can react to new alerts (on_new_alerts) and/or expose its own
+# /api/ext/<name>/... web endpoints (register_routes). See that file + the
+# plugins/base.py docstring for the full contract.
+plugins:
+  example:
+    enabled: false                 # true = load the built-in template plugin
+    greeting: "example plugin ready"
+
+api_version: "2019-05-05-preview"
+state_db: "./data/seen.db"         # relative to project; created on first run.
+                                   # rolling window matching `lookback` above —
+                                   # alerts not seen again within that window
+                                   # are pruned automatically.
+log_level: "INFO"

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1116">
+<title>AzMon · Alert Console</title>
+<link rel="stylesheet" href="/static/vendor/uplot/uPlot.min.css">
+<link rel="stylesheet" href="/static/styles.css?v=17">
+</head>
+<body data-worst="5">
+
+<!-- signature: status header pulses with worst active severity -->
+<header class="topbar" id="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div class="brand-text">
+      <h1>AzMon</h1>
+      <span class="brand-sub">personal alert console</span>
+    </div>
+  </div>
+  <div class="status">
+    <span class="status-line" id="statusLine">All clear</span>
+    <span class="meta">
+      <span class="dot" id="connDot" title="connection"></span>
+      <span id="conn">connecting…</span>
+      <span class="sep">·</span>
+      <span id="acctName" title="Azure account">…</span>
+      <span class="sep pim-sep" hidden>·</span>
+      <span id="pimChip" class="pim-chip" hidden></span>
+      <span class="sep">·</span>
+      <span id="updated">—</span>
+    </span>
+  </div>
+  <div class="gear-wrap">
+    <button class="gear-btn" id="gearBtn" title="Settings" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 24 24" class="ic"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7.7 1.6 1.6 0 01-3.2 0 1.6 1.6 0 00-2.7-.7l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00-1-2.7 1.6 1.6 0 010-3.2 1.6 1.6 0 001-2.7l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 002.7-1 1.6 1.6 0 013.2 0 1.6 1.6 0 002.7 1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 001 2.7 1.6 1.6 0 010 3.2 1.6 1.6 0 00-1.4 1z"/></svg>
+    </button>
+    <div class="gear-menu" id="gearMenu" hidden>
+      <div class="gm-status" id="gmStatus">…</div>
+      <button class="gm-item" id="miPoll"><span>Poll now</span></button>
+      <button class="gm-item" id="miClear"><span>Clear old alerts…</span></button>
+      <button class="gm-item" id="miConfig"><span>Edit config…</span></button>
+      <button class="gm-item" id="miLogs"><span>View backend logs…</span></button>
+      <button class="gm-item" id="miReauth"><span>Re-authenticate (az login)</span></button>
+      <button class="gm-item" id="miTest"><span>Send test notification</span></button>
+      <button class="gm-item" id="miTheme"><span>Toggle light / dark</span></button>
+      <div class="gm-sep"></div>
+      <div class="gm-label">Export current view</div>
+      <div class="gm-row">
+        <a class="gm-mini" id="miExpJson" href="#">JSON</a>
+        <a class="gm-mini" id="miExpCsv" href="#">CSV</a>
+      </div>
+      <div class="gm-sep"></div>
+      <div class="gm-label gm-ext-head"><span>Extensions</span>
+        <button class="gm-add" id="extAdd" title="Add a plugin (.py file)">+ add</button>
+      </div>
+      <input type="file" id="extFile" accept=".py" hidden>
+      <div class="gm-ext" id="gmExt">…</div>
+    </div>
+  </div>
+</header>
+
+<!-- clear-old-alerts modal -->
+<div class="modal-back" id="clearModal" hidden>
+  <div class="modal">
+    <h3>Clear old alerts</h3>
+    <p>Remove alerts that fired more than the selected age ago. This deletes them from the local DB (Azure is untouched).</p>
+    <div class="modal-row" id="clearBrackets">
+      <button class="btn-tonal" data-h="1">Older than 1h</button>
+      <button class="btn-tonal" data-h="3">Older than 3h</button>
+      <button class="btn-tonal" data-h="6">Older than 6h</button>
+      <button class="btn-tonal" data-h="24">Older than 1d</button>
+    </div>
+    <div class="modal-row">
+      <button class="btn-danger" data-h="0">Clear entire DB</button>
+    </div>
+    <div class="modal-foot"><button class="link-btn" id="clearCancel">Cancel</button></div>
+  </div>
+</div>
+
+<!-- resource metrics modal -->
+<div class="modal-back" id="metricsModal" hidden>
+  <div class="modal modal-wide">
+    <div class="mm-head">
+      <div class="mm-titles">
+        <h3 id="mmTitle">Metrics</h3>
+        <span class="mm-sub" id="mmSub"></span>
+      </div>
+      <button class="link-btn" id="mmClose">Close</button>
+    </div>
+    <div class="mm-bar">
+      <div class="mm-range" id="mmRange">
+        <button data-h="1">1h</button>
+        <button data-h="6" class="on">6h</button>
+        <button data-h="12">12h</button>
+        <button data-h="24">1d</button>
+      </div>
+      <div class="mm-search-wrap">
+        <svg viewBox="0 0 24 24" class="ic"><path d="M21 21l-4.3-4.3M11 18a7 7 0 110-14 7 7 0 010 14z"/></svg>
+        <input id="mmSearch" type="search" placeholder="Search metrics…" autocomplete="off">
+      </div>
+    </div>
+    <div class="mm-metrics" id="mmMetrics"></div>
+    <div class="mm-charts" id="mmCharts"></div>
+    <div class="mm-msg" id="mmMsg"></div>
+  </div>
+</div>
+
+<!-- log-query (KQL) results modal -->
+<div class="modal-back" id="logModal" hidden>
+  <div class="modal modal-wide">
+    <div class="mm-head">
+      <div class="mm-titles">
+        <h3 id="lqTitle">Query results</h3>
+        <span class="mm-sub" id="lqSub"></span>
+      </div>
+      <button class="link-btn" id="lqClose">Close</button>
+    </div>
+    <div class="lq-tablewrap" id="lqTable"></div>
+    <details class="lq-kql"><summary>KQL query</summary><pre id="lqQuery"></pre></details>
+    <div class="mm-msg" id="lqMsg"></div>
+  </div>
+</div>
+
+<!-- config editor modal -->
+<div class="modal-back" id="configModal" hidden>
+  <div class="modal modal-wide">
+    <div class="mm-head">
+      <div class="mm-titles"><h3>Edit config.yaml</h3>
+        <span class="mm-sub" id="cfgSub">changes apply live — no restart (host/port/plugins still need one)</span></div>
+      <button class="link-btn" id="cfgClose">Close</button>
+    </div>
+    <textarea id="cfgText" class="cfg-text" spellcheck="false"></textarea>
+    <div class="cfg-foot">
+      <button class="btn-tonal" id="cfgSave">Save &amp; apply</button>
+      <span class="cfg-note">⚠ contains secrets — this file stays on your machine</span>
+    </div>
+    <div class="mm-msg" id="cfgMsg"></div>
+  </div>
+</div>
+
+<!-- backend logs modal -->
+<div class="modal-back" id="logsModal" hidden>
+  <div class="modal modal-wide">
+    <div class="mm-head">
+      <div class="mm-titles"><h3>Backend logs</h3></div>
+      <div class="logs-ctl">
+        <input id="logsSearch" class="logs-search" type="search" placeholder="filter…" autocomplete="off">
+        <label class="toggle"><input type="checkbox" id="logsAuto" checked><span>auto</span></label>
+        <button class="link-btn" id="logsClose">Close</button>
+      </div>
+    </div>
+    <div class="logs-pre" id="logsPre">…</div>
+  </div>
+</div>
+
+<!-- mute / snooze popover (positioned by JS under the clicked mute button) -->
+<div class="mute-menu" id="muteMenu" hidden>
+  <button data-h="1">Snooze 1 hour</button>
+  <button data-h="8">Snooze 8 hours</button>
+  <button data-h="24">Snooze 1 day</button>
+  <button data-h="0">Mute forever</button>
+</div>
+
+<!-- alert detail drawer -->
+<aside class="drawer" id="drawer" hidden>
+  <div class="drawer-head">
+    <div class="drawer-titles">
+      <span class="chip" id="dChip"></span>
+      <h3 id="dName"></h3>
+    </div>
+    <button class="link-btn" id="dClose">Close</button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+</aside>
+<div class="drawer-back" id="drawerBack" hidden></div>
+
+<main>
+  <!-- auth / poll health banner -->
+  <section class="auth-banner" id="authBanner" hidden>
+    <svg viewBox="0 0 24 24" class="ic"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>
+    <span id="authBannerText"></span>
+  </section>
+
+  <!-- summary tiles — click to filter -->
+  <section class="tiles" id="tiles">
+    <button class="tile tile-total" data-sev="all">
+      <span class="tile-num" id="t-total">0</span>
+      <span class="tile-label">Active</span>
+    </button>
+    <button class="tile" data-sev="0">
+      <span class="tile-num" id="t-crit">0</span><span class="tile-label">Critical</span>
+    </button>
+    <button class="tile" data-sev="1">
+      <span class="tile-num" id="t-err">0</span><span class="tile-label">Error</span>
+    </button>
+    <button class="tile" data-sev="2">
+      <span class="tile-num" id="t-warn">0</span><span class="tile-label">Warning</span>
+    </button>
+    <button class="tile" data-sev="3">
+      <span class="tile-num" id="t-info">0</span><span class="tile-label">Info</span>
+    </button>
+    <button class="tile" data-sev="4">
+      <span class="tile-num" id="t-verb">0</span><span class="tile-label">Verbose</span>
+    </button>
+  </section>
+
+  <!-- Active / Closed section switch -->
+  <section class="tabs" id="sectionTabs">
+    <button class="tab sel" data-section="open">Active</button>
+    <button class="tab" data-section="closed">Closed</button>
+  </section>
+
+  <!-- toolbar -->
+  <section class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" class="ic"><path d="M21 21l-4.3-4.3M11 18a7 7 0 110-14 7 7 0 010 14z"/></svg>
+      <input id="search" type="search" placeholder="Filter by resource or rule" autocomplete="off">
+    </div>
+    <div class="controls">
+      <label class="toggle">
+        <input type="checkbox" id="showAcked"><span>Show dismissed</span>
+      </label>
+      <select class="select" id="rangeSel" title="Time frame — alerts fired within">
+        <option value="0">Any time</option>
+        <option value="1">Last 1 hour</option>
+        <option value="3">Last 3 hours</option>
+        <option value="6">Last 6 hours</option>
+        <option value="12">Last 12 hours</option>
+        <option value="24">Last 24 hours</option>
+      </select>
+      <select class="select" id="sortSel" title="Sort">
+        <option value="fired_desc">Newest first</option>
+        <option value="fired_asc">Oldest first</option>
+        <option value="severity">Severity</option>
+        <option value="name">Name (A–Z)</option>
+        <option value="resource">Resource name</option>
+      </select>
+      <select class="select" id="groupSel" title="Group by">
+        <option value="smart">Group: Smart</option>
+        <option value="targetResourceName">Group: Resource</option>
+        <option value="targetResourceGroup">Group: Resource group</option>
+        <option value="severity">Group: Severity</option>
+        <option value="alertRule">Group: Alert rule</option>
+        <option value="signalType">Group: Signal type</option>
+        <option value="subscription">Group: Subscription</option>
+        <option value="none">No grouping</option>
+      </select>
+      <button class="btn-tonal icon-btn" id="collapseBtn" title="Collapse all groups"
+              aria-label="Collapse or expand all groups">
+        <svg viewBox="0 0 24 24" class="ic" id="collapseIcon"><path d="M4 9l8-5 8 5M4 15l8 5 8-5"/></svg>
+      </button>
+      <button class="btn-tonal" id="soundBtn" aria-pressed="true">
+        <svg viewBox="0 0 24 24" class="ic"><path d="M11 5L6 9H3v6h3l5 4V5zM16 9a4 4 0 010 6"/></svg>
+        <span id="soundLabel">Sound on</span>
+      </button>
+      <button class="btn-tonal" id="unackAll" hidden>Undismiss all</button>
+      <button class="btn-tonal" id="ackAll">Dismiss all</button>
+    </div>
+  </section>
+
+  <!-- shown when still-firing alerts are hidden because they were dismissed -->
+  <section class="dismiss-hint" id="dismissHint" hidden>
+    <span id="dismissHintText"></span>
+    <button class="link-btn" id="hintUndismiss">Undismiss all</button>
+    <button class="link-btn" id="hintShow">Show dismissed</button>
+  </section>
+
+  <!-- groups render here -->
+  <section id="groups" class="groups"></section>
+
+  <!-- empty state -->
+  <section id="empty" class="empty" hidden>
+    <div class="empty-glyph"></div>
+    <h2 id="emptyTitle">Nothing's on fire</h2>
+    <p id="emptyBody">No active alerts match your filter. New ones land here the moment they fire.</p>
+  </section>
+</main>
+
+<div class="flash" id="flash" aria-hidden="true"></div>
+
+<!-- PIM caution toast (bottom) -->
+<div class="caution-toast" id="cautionToast" hidden>
+  <svg viewBox="0 0 24 24" class="ic"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>
+  <span id="cautionText"></span>
+</div>
+
+<script src="/static/vendor/uplot/uPlot.iife.min.js"></script>
+<script src="/static/app.js?v=17"></script>
+</body>
+</html>

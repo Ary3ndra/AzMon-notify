@@ -1,0 +1,8 @@
+.venv/
+data/
+__pycache__/
+*.pyc
+.claude/
+# real config holds secrets (ntfy/telegram tokens, auth token) — never commit.
+# ship config.example.yaml instead; users copy it to config.yaml.
+config.yaml
