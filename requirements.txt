@@ -2,5 +2,5 @@ fastapi>=0.139.0
 uvicorn[standard]>=0.30
 azure-identity>=1.25.3
 requests>=2.32.2
-PyYAML>=6.0
+PyYAML>=6.0.3
 winotify>=1.1 ; sys_platform == "win32"
